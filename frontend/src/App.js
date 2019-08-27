@@ -3,97 +3,73 @@ import "./App.css";
 
 class App extends React.Component {
   state = {
-    clickX: [],
-    clickY: [],
-    clickDrag: [],
-    paint: false
+    paint: false,
+    completePaths: [],
+    onGoingPath: []
   };
 
-  componentDidMount() {
-    const text = this.props.text || "Sample Text";
-    const canvas = this.refs.canvas;
-    const ctx = canvas.getContext("2d");
-    const img = this.refs.image;
-    console.log(
-      "canvas.getBoundingClientRect() :",
-      canvas.getBoundingClientRect()
-    );
-
-    img.onload = () => {
-      ctx.drawImage(img, 0, 0);
-      ctx.font = "40px Courier";
-      ctx.fillText(text, 210, 75);
-    };
-  }
-
-  addClick = (x, y, dragging) => {
-    this.setState(state => {
-      const { clickX, clickY, clickDrag } = state;
-      return {
-        clickX: [...clickX, x],
-        clickY: [...clickY, y],
-        clickDrag: [...clickDrag, dragging]
-      };
+  addClick = (x, y) => {
+    this.setState(({ onGoingPath }) => {
+      return { onGoingPath: [...onGoingPath, { x, y }] };
     });
   };
 
   convertX = (x, left) => x - left;
   convertY = (y, top) => y - top;
 
-  componentWillUpdate() {
-    const { clickX, clickY, clickDrag } = this.state;
-    const canvas = this.refs.canvas;
-    if (!canvas) {
+  drawPath = (canvas, path) => {
+    const { left, top } = canvas.getBoundingClientRect();
+    const context = canvas.getContext("2d");
+    if (path.length === 0) {
       return;
     }
-    const { left, top } = canvas.getBoundingClientRect();
-
-    const context = canvas.getContext("2d");
-    context.clearRect(0, 0, context.canvas.width, context.canvas.height);
-    context.strokeStyle = "red";
-    context.lineJoin = "round";
-    context.lineWidth = 5;
-    for (var i = 0; i < clickX.length; i++) {
+    for (var i = 1; i < path.length; i++) {
+      const startPoint = path[i - 1];
+      const endPoint = path[i];
       context.beginPath();
-      if (clickDrag[i] && i) {
-        context.moveTo(
-          this.convertX(clickX[i - 1], left),
-          this.convertX(clickY[i - 1], top)
-        );
-      } else {
-        context.moveTo(
-          this.convertX(clickX[i] - 1, left),
-          this.convertX(clickY[i], top)
-        );
-      }
+      context.moveTo(
+        this.convertX(startPoint.x, left),
+        this.convertX(startPoint.y, top)
+      );
       context.lineTo(
-        this.convertX(clickX[i], left),
-        this.convertX(clickY[i], top)
+        this.convertX(endPoint.x, left),
+        this.convertX(endPoint.y, top)
       );
       context.closePath();
       context.stroke();
     }
+  };
+
+  componentWillUpdate() {
+    const canvas = this.refs.canvas;
+    if (!canvas) {
+      return;
+    }
+    const { completePaths, onGoingPath } = this.state;
+    completePaths.forEach(path => this.drawPath(canvas, path));
+    this.drawPath(canvas, onGoingPath);
   }
 
   onMouseDown = e => {
-    console.log("e :", e);
-    const { clientX, clientY, pageX, pageY, screenX, screenY } = e;
-    console.log({ clientX, clientY, pageX, pageY, screenX, screenY });
-    var mouseX = e.pageX;
-    var mouseY = e.pageY;
     this.setState({ paint: true });
-    this.addClick(mouseX, mouseY);
+    this.addClick(e.pageX, e.pageY);
   };
 
   onMouseMove = e => {
     const { paint } = this.state;
     if (paint) {
-      this.addClick(e.pageX, e.pageY, true);
+      this.addClick(e.pageX, e.pageY);
     }
   };
 
   onMouseUp = e => {
-    this.setState({ paint: false });
+    this.setState(({ completePaths, onGoingPath }) => {
+      return {
+        paint: false,
+        completePaths: [...completePaths, onGoingPath],
+        onGoingPath: []
+      };
+    });
   };
 
   render() {
@@ -107,12 +83,6 @@ class App extends React.Component {
           onMouseUp={this.onMouseUp}
           width="800"
           height="800"
-        />
-        <img
-          ref="image"
-          src="https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png"
-          className="hidden"
-          alt="img"
         />
       </div>
     );
