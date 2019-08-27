@@ -8,6 +8,24 @@ class App extends React.Component {
     onGoingPath: []
   };
 
+  componentDidMount() {
+    this.conn = new WebSocket("ws://localhost:8080/ws");
+    console.log("this.conn :", this.conn);
+    this.conn.onclose = evt => {
+      console.log("connection closed", evt);
+    };
+    this.conn.onerror = evt => {
+      console.log("connection error :", evt);
+    };
+    this.conn.onmessage = evt => {
+      console.log("received data", evt.data);
+      console.log("JSON.parse(evt.data) :", JSON.parse(evt.data));
+      this.setState(({ completePaths }) => {
+        return { completePaths: [...completePaths, JSON.parse(evt.data)] };
+      }, console.log("this.state.completePaths :", this.state.completePaths));
+    };
+  }
+
   addClick = (x, y) => {
     this.setState(({ onGoingPath }) => {
       return { onGoingPath: [...onGoingPath, { x, y }] };
@@ -63,7 +81,11 @@ class App extends React.Component {
   };
 
   onMouseUp = e => {
-    this.setState(({ completePaths, onGoingPath }) => {
+    const { onGoingPath } = this.state;
+    if (this.conn) {
+      this.conn.send(JSON.stringify(onGoingPath));
+    }
+    this.setState(({ completePaths }) => {
       return {
         paint: false,
         completePaths: [...completePaths, onGoingPath],
